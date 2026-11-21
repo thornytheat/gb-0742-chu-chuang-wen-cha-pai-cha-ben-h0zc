@@ -210,4 +210,109 @@ function archive({history,run}) {
     ['持续门槛',`${run.sustained_hours} h`],['耗时',`${run.elapsed_ms} ms`],['归卷柜号',run.cabinets.map((item) => item.id).join('、')]]));
 }
 
-export const stages = {intake, assignment, pairing, gradient, episodes, audit, archive};
+async function settlement({request, records, params, message}) {
+  const runsBox = q('#settlement-runs');
+  const form = q('#settlement-form');
+  const historyBox = q('#settlement-history');
+  const hoursBox = q('#settlement-hours');
+  const episodesBox = q('#settlement-episodes');
+  const ticketsBox = q('#settlement-tickets');
+  const summaryBox = q('#settlement-summary');
+
+  function drawRuns() {
+    runsBox.replaceChildren(...records.map((item) => {
+      const label = el('label',null,'settlement-run');
+      const check = document.createElement('input');
+      check.type = 'checkbox'; check.name = 'run'; check.value = item.id;
+      if (params.getAll('run').includes(item.id)) check.checked = true;
+      label.append(check, el('span',`${item.shift} · ${item.label}`),
+        el('small',`${stamp(item.window[0])} – ${stamp(item.window[1])}`));
+      return label;
+    }));
+  }
+
+  function drawHistory(items) {
+    if (!items.length) { historyBox.replaceChildren(el('p','尚无日结。','empty')); return; }
+    const list = el('div',null,'history-list');
+    for (const item of items) {
+      const link = el('a',`${item.day} · v${item.version}${item.current ? ' · 当前' : ''}`,'table-action');
+      link.href = `/settlement?settlement=${item.id}`;
+      if (item.id === params.get('settlement')) link.setAttribute('aria-current','true');
+      link.title = item.shifts.join('、');
+      list.append(link);
+    }
+    historyBox.replaceChildren(list);
+  }
+
+  function drawReport(report) {
+    put('#shift-caption',`闭馆日结 ${report.day}`);
+    put('#shift-window',`${stamp(report.window[0])} — ${stamp(report.window[1])}`);
+    table(hoursBox, report.hours, [
+      ['柜时',(row) => stamp(row.start),'mono'],
+      ['归属班次','owner_shift','mono'],
+      ['重叠',(row) => row.overlap ? `交接 · ${row.covered_shifts.join('／')}` : '—'],
+      ['核销判级',(row) => state(row.state)],
+      ['各班口径',(row) => row.shift_states.map((s) => `${s.shift}:${words[s.state] ?? s.state}`).join(' / '),'mono'],
+      ['交接分歧',(row) => row.conflict ? state('CONFLICT') : '—'],
+      ['异常段',(row) => row.episodes.join('、') || '—','mono'],
+      ['工单',(row) => row.tickets.map((t) => t.id).join('、') || '—','mono'],
+    ], '该闭馆日没有核销小时。');
+    hoursBox.querySelectorAll('tbody tr').forEach((tr, i) => tr.classList.toggle('conflict-row', report.hours[i].conflict));
+    table(episodesBox, report.episodes, [
+      ['段号','id','mono'], ['判级',(row) => state(row.kind)],
+      ['起',(row) => stamp(row.start),'mono'], ['止',(row) => stamp(row.end),'mono'],
+      ['时长 h','hours','num'], ['跨交接',(row) => row.crosses_handover ? '是' : '—'],
+      ['归属班次',(row) => row.owner_shifts.join('、'),'mono'],
+    ], '无异常段。');
+    table(ticketsBox, report.tickets, [
+      ['工单','id','mono'], ['展柜','cabinet','mono'],
+      ['落点小时',(row) => stamp(row.slot ?? row.at_utc),'mono'],
+      ['来源班次','source_shift','mono'], ['归属班次','owner_shift','mono'],
+      ['重叠小时',(row) => row.in_overlap ? '是' : '—'],
+      ['勾稽',(row) => state(row.code)], ['关联段','episode','mono'],
+    ], '该闭馆日没有工单。');
+    const ov = report.overlap;
+    summaryBox.replaceChildren(
+      entries([['应监测',report.tally.expected],['稳定',report.tally.stable],['异常',report.tally.abnormal],
+        ['缺证',report.tally.missing],['唯一柜时',ov.unique],['逐班相加',ov.shift_sum]]),
+      entries([['重叠小时',ov.hours],['交接分歧',ov.conflicts],['工单数',report.ticket_count],
+        ['日结规则',report.policy],['持续门槛',`${report.sustained_hours} h`],
+        ['版本摘要',report.report_sha256?.slice(0,12) ?? '—']]));
+  }
+
+  drawRuns();
+  const versions = await request('/api/settlements');
+  drawHistory(versions);
+  const selected = params.get('settlement')
+    ?? (versions.find((item) => item.current)?.id);
+  if (selected) {
+    try {
+      drawReport(await request(`/api/settlements/${selected}`));
+      put('#statusbar',`日结 ${selected.slice(0,12)}`);
+    } catch (error) { message(error.message,true); }
+  } else {
+    hoursBox.replaceChildren(el('p','勾选班次后生成日结。','empty'));
+    episodesBox.replaceChildren(el('p','暂无异常段。','empty'));
+    ticketsBox.replaceChildren(el('p','暂无工单。','empty'));
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const runIds = [...new FormData(form).getAll('run')];
+    if (runIds.length < 2) return message('请至少勾选两个同闭馆日的交接班次。', true);
+    message('正在按连续小时核销…');
+    try {
+      const result = await request('/api/settlements', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({run_ids: runIds}),
+      });
+      params.set('settlement', result.id);
+      history.replaceState(null,'',`/settlement?${params}`);
+      drawReport(result.report);
+      drawHistory(await request('/api/settlements'));
+      message(result.reused ? '相同输入已日结，返回原版本（未新增日结）。' : `日结已生成 · 版本 v${result.version}。`);
+      put('#statusbar',`日结 ${result.id.slice(0,12)}`);
+    } catch (error) { message(error.message, true); }
+  });
+}
+
+export const stages = {intake, assignment, pairing, gradient, episodes, audit, settlement, archive};

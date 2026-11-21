@@ -16,6 +16,9 @@ from app.modules.episodes import handler as episodes
 from app.modules.gradient import handler as gradient
 from app.modules.intake import handler as intake
 from app.modules.pairing import handler as pairing
+from app.modules.settlement import handler as settlement
+from app.modules.settlement.service import SettlementService
+from app.modules.settlement.store import SettlementStore
 from app.store import ArchiveStore
 from app.web import router as web
 
@@ -24,14 +27,17 @@ def create_app(path=None, seed=True):
     @asynccontextmanager
     async def lifespan(app):
         await run_in_threadpool(app.state.archives.store.setup)
+        await run_in_threadpool(app.state.settlements.store.setup)
         if seed and not await run_in_threadpool(app.state.archives.store.history):
             await run_in_threadpool(app.state.archives.run, "shift")
         yield
 
     app = FastAPI(title="橱窗温差排查本", lifespan=lifespan)
     app.state.archives = ArchiveService(ArchiveStore(path or database_path()))
+    settlement_path = (path or database_path())
+    app.state.settlements = SettlementService(SettlementStore(settlement_path), app.state.archives)
     app.mount("/static", StaticFiles(directory=ROOT / "app/static"), name="static")
-    for module in (intake, assignment, pairing, gradient, episodes, audit, archive):
+    for module in (intake, assignment, pairing, gradient, episodes, audit, archive, settlement):
         app.include_router(module.router)
     app.include_router(web)
     app.add_exception_handler(FieldError, domain_error)

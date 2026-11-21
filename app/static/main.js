@@ -112,6 +112,15 @@ cabinet.addEventListener('change', () => go(async () => {
 go(async () => {
   const params = new URLSearchParams(location.search);
   const [records, catalog] = await Promise.all([request('/api/runs'),request('/api/samples')]);
+  if (stage === 'settlement') {
+    choose(sample,catalog.map((item) => [item.id,item.label]),'shift');
+    runButton.disabled = true; replayButton.disabled = true; cabinet.disabled = true; printButton.disabled = false;
+    await stages.settlement({request, records, params, message});
+    put('#statusbar','闭馆日结');
+    content.hidden = false;
+    content.setAttribute('aria-busy','false');
+    return;
+  }
   const run = params.has('run') ? records.find((item) => item.id === params.get('run')) : records[0];
   choose(sample,catalog.map((item) => [item.id,item.label]),run?.sample ?? 'shift');
   if (run) await render(run,params.get('cabinet'),records,params);

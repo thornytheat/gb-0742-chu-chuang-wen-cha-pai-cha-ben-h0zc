@@ -8,6 +8,7 @@ export const words = {
   LOWER_CONTENTION:'下层读数占用', CI_OVERLAP:'区间跨阈值', MISSING_RH:'湿度缺证',
   UNUSED_LOWER:'未用下层', EXTRA_UPPER:'额外上层', LATE_RECEIPT:'迟报', temperature:'温度', humidity:'湿度',
   upper:'上层', lower:'下层', accepted:'采信', isolated:'隔离', header:'栏头', duplicate:'重复', blank:'空行',
+  CONFLICT:'交接分歧', SUSTAINED:'持续异常',
 };
 const timeZone = 'Asia/Shanghai';
 const clock = new Intl.DateTimeFormat('zh-CN', {timeZone, hour:'2-digit',minute:'2-digit',hourCycle:'h23'});

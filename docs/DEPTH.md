@@ -13,6 +13,7 @@
 | M5 异常持续 | 定位连续与瞬时异常段及其原行 | `GET /api/runs/{run_id}/episodes/{cabinet}` | `app/modules/episodes/segment.py` | `tests/test_episodes.py` |
 | M6 值班单勾稽 | 核对柜时与图档行，查报警误报漏报 | `GET /api/runs/{run_id}/audit` | `app/modules/audit/reconcile.py` | `tests/test_audit.py` |
 | M7 证据归卷 | 运行、复算或下载带摘要的归卷 | `POST /api/runs` `POST /api/runs/{run_id}/rerun` `GET /api/runs/{run_id}/export` | `app/modules/archive/pipeline.py` `app/modules/archive/service.py` `app/modules/archive/proof.py` `app/store.py` | `tests/test_archive.py` |
+| M8 闭馆日结 | 多班交接按连续小时核销，查重叠归属、跨交接异常段和工单落点 | `POST /api/settlements` `GET /api/settlements/days/{day}` | `app/modules/settlement/ledger.py` `app/modules/settlement/service.py` `app/modules/settlement/store.py` | `tests/test_settlement.py` |
 
 ## 陷阱登记
 
@@ -34,6 +35,10 @@
 | TRAP-17 | `night-points.csv` 第二段改中文并换序 | 收报和测量栏对调 | 每段独立映射字段 | `app/modules/intake/readings.py` | `tests/test_intake.py::test_header_switch_changes_field_positions` |
 | TRAP-23 | 探头在 13:00 馆内时间换柜 | 同一时刻两柜采信 | 左闭右开选择新柜 | `app/modules/assignment/windows.py` | `tests/test_assignment.py::test_adjacent_windows_are_half_open_at_exact_move` |
 | TRAP-25 | 在混合部署契约上叠加同柜同层窗 | 任选一个探头 | 标重叠并拒用重叠段 | `app/modules/assignment/windows.py` | `tests/test_assignment.py::test_second_probe_at_same_position_marks_overlap_only` |
+| TRAP-31 | 两班交接重叠两个柜时，逐班相加 | 重叠柜时算两遍，柜时账虚增 | 小时归最早开班的一班，晚班判级留作 `shift_states`，`shift_sum` 与 `unique` 并列展示 | `app/modules/settlement/ledger.py` | `tests/test_settlement.py::test_overlap_hours_counted_once_not_summed_per_shift` |
+| TRAP-32 | 重叠小时只取后一班 | 前一班已报异常和工单在日结消失 | 工单带来源/归属双班次落到小时，异常按归属后连续序列重切段并保留全部原账判级 | `app/modules/settlement/ledger.py` | `tests/test_settlement.py::test_every_ticket_lands_on_an_hour_with_source_and_owner_shift` |
+| TRAP-33 | 两班对同一小时判级不同 | 后写覆盖先写，交接差账无痕 | 不覆盖，标 `conflict`，权威判级取归属班并保留各班口径 | `app/modules/settlement/ledger.py` | `tests/test_settlement.py::test_each_overlap_hour_names_owner_and_keeps_both_shift_verdicts` |
+| TRAP-34 | 同一天反复点日结 | 每次新增一条日结，或失败把旧版冲掉 | 日结键含输入摘要，同输入重跑返回旧版；版本只追加，存储失败旧版仍为当前 | `app/modules/settlement/store.py` `app/modules/settlement/service.py` | `tests/test_settlement.py::test_rerun_same_input_returns_same_settlement_without_new_row` `tests/test_settlement.py::test_storage_failure_during_write_keeps_old_version_current` |
 
 真实反例还有迁移前一分钟的下层读数不能与迁移后的上层配对，近中点无证读数不能挤掉同小时有效候选，区间端点的展示舍入不能改变判级，缺证切断连续异常，工单不能重复清销同一段。
 
@@ -42,3 +47,4 @@
 - 应监测柜时按键集合核对，柜时数分到稳定、异常、缺证。
 - 工单与持续异常按柜时定位，列出重复报警和未报持续段。
 - 原始 CSV、契约、规则版次确定归卷键。复算和证据导出会验证结果 SHA-256。
+- 日结按展柜连续小时核销：重叠小时归早开班且只计一次，晚班口径与交接分歧单列；异常段跨交接连续，工单保留来源与归属班次；日结版本只追加，同输入重跑不新增。

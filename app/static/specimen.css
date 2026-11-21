@@ -69,4 +69,14 @@ sup { font: 10px var(--mono); color: var(--accent); }
 .history-list a[aria-current] { background: var(--accent-soft); font-weight: 700; }
 .digest-list .rule-list { grid-template-columns: minmax(70px,.35fr) minmax(0,1fr); }
 .jump-list { display: grid; gap: 4px; margin-top: 6px; }
+.settlement-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
+.settlement-board .wide-pane { grid-column: span 1; }
+.settlement-runs { display: grid; gap: 6px; margin-bottom: 10px; }
+.settlement-run { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--ruling); cursor: pointer; }
+.settlement-run small { margin-left: auto; color: var(--ink-dim); font: 11px var(--mono); }
+.settlement-run input { accent-color: var(--accent); }
+.settlement-compose .button { width: 100%; }
+.state.conflict { color: var(--unstable); font-weight: 700; }
+tr.conflict-row { background: color-mix(in srgb, var(--unstable) 9%, transparent); }
+@media (max-width: 980px) { .settlement-board { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 690px) { .cut-drawing { min-height: 298px; } }

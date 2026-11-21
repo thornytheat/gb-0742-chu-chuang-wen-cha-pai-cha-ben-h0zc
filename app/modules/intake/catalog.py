@@ -7,7 +7,8 @@ from app.config import MAX_FILE_BYTES, ROOT
 from app.errors import FieldError
 from app.modules.intake.contract import Package, Shift
 
-CATALOG = {"shift": "值班混合样例", "clean": "全稳校验样例", "truncated": "截断图档样例"}
+CATALOG = {"shift": "值班混合样例", "clean": "全稳校验样例", "truncated": "截断图档样例",
+           "day-handover": "交接日班样例", "evening-handover": "交接晚班样例"}
 
 
 def load_sample(sample, root=ROOT / "sample_data"):

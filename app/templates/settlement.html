@@ -1,0 +1,42 @@
+<div class="settlement-board">
+  <section class="panel settlement-compose">
+    <div class="panel__head"><h2>日结班次</h2></div>
+    <div class="panel__body">
+      <p class="empty">从本班次归卷中勾选同一闭馆日的交接班次，重叠小时按早开班次归属。</p>
+      <form id="settlement-form">
+        <div id="settlement-runs" class="settlement-runs"></div>
+        <button id="settlement-run" class="button fill" type="submit">生成日结</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><h2>日结版本</h2></div>
+    <div id="settlement-history" class="scroll"></div>
+  </section>
+
+  <section class="panel wide-pane">
+    <div class="panel__head"><h2>连续小时核销 <sup>1</sup></h2></div>
+    <div id="settlement-hours" class="scroll"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><h2>异常段（跨交接连续）</h2></div>
+    <div id="settlement-episodes" class="panel__body"></div>
+  </section>
+
+  <section class="panel wide-pane">
+    <div class="panel__head"><h2>工单落点</h2></div>
+    <div id="settlement-tickets" class="scroll"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><h2>柜时守恒</h2></div>
+    <div id="settlement-summary" class="panel__body"></div>
+  </section>
+</div>
+<ol class="footnotes">
+  <li>每个展柜小时只核销一次：重叠小时归早开班次，晚班判级保留在“各班口径”列，分歧标“交接分歧”。</li>
+  <li>异常段按归属后的连续小时重新切段，因此跨 16:00 交接的异常仍为同一段；工单逐张保留来源班次与归属班次。</li>
+  <li>日结只追加不改写：同输入重跑返回原版本不新增行；写入失败时旧版继续作为当前日结。</li>
+</ol>

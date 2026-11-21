@@ -4,11 +4,16 @@ from fastapi import Depends, Request
 
 from app.errors import FieldError
 from app.modules.archive.service import ArchiveService
+from app.modules.settlement.service import SettlementService
 from app.timebase import seconds
 
 
 def service(request: Request):
     return request.app.state.archives
+
+
+def settlements(request: Request):
+    return request.app.state.settlements
 
 
 def archive(run_id: str, request: Request):
@@ -17,6 +22,7 @@ def archive(run_id: str, request: Request):
 
 Archive = Annotated[tuple, Depends(archive)]
 Service = Annotated[ArchiveService, Depends(service)]
+SettlementSvc = Annotated[SettlementService, Depends(settlements)]
 
 
 def cabinet_scope(manifest, cabinet):
